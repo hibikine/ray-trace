@@ -4,3 +4,5 @@ version = "0.1.0"
 authors = ["Hibikine Kage <goodsmile314159@gmail.com>"]
 
 [dependencies]
+image = "0.18.0"
+color_quant = "1.0.0"
