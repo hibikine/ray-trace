@@ -7,3 +7,4 @@ authors = ["Hibikine Kage <goodsmile314159@gmail.com>"]
 image = "0.18.0"
 color_quant = "1.0.0"
 nalgebra = "0.14.0"
+rand = "0.4"
