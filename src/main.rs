@@ -191,7 +191,7 @@ impl CameraLookAtBuilder {
 }
 
 fn lerp(t: &f32, a: &Vector3<f32>, b: &Vector3<f32>) -> Vector3<f32> {
-    (1f32 / t) * (a + b)
+    (0.5f32 / t) * (a + b)
 }
 
 fn color(ray: &Ray) -> Vector3<f32> {
