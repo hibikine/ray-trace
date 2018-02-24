@@ -86,7 +86,7 @@ impl Camera {
     fn getRay(&self, u: &f32, v: &f32) -> Ray {
         Ray::new( 
             self.origin,
-            self.uvw[2] + self.uvw[0] * *u + self.uvw[1] * *v - self.origin
+            self.uvw[2] + self.uvw[0] * *u - self.uvw[1] * *v - self.origin
         )
     }
 }
@@ -175,7 +175,7 @@ impl CameraLookAtBuilder {
     fn finalize(&self) -> Camera {
         let halfH = (self.vfov.to_radians() / 2f32).tan();
         let halfW = self.aspect * halfH;
-        let w: Vector3<f32> = (self.lookfrom - self.lookat).normalize();
+        let w = (self.lookfrom - self.lookat).normalize();
         let u = (self.vup.cross(&w)).normalize();
         let v = w.cross(&u);
 
