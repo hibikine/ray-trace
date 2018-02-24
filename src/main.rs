@@ -1,4 +1,4 @@
-
+extern crate nalgebra;
 extern crate image;
 
 use image::ImageBuffer;
@@ -6,10 +6,7 @@ use image::Rgb;
 use std::fs::File;
 use image::ImageRgb8;
 use image::PNG;
-
-mod vector;
-use vector::Vector3;
-
+use nalgebra::Vector3;
 
 fn main() {
     let nx = 200;
@@ -25,5 +22,4 @@ fn main() {
     
     let ref mut f = File::create("image.png").unwrap();
     ImageRgb8(image).save(f, PNG).unwrap();
-    let v = Vector3{x:0.,y:0.,z:0.};
 }
