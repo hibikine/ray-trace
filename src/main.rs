@@ -200,11 +200,11 @@ fn color(ray: &Ray) -> Vector3<f32> {
     lerp(&t, &Vector3::new(0.5f32, 0.7f32, 1.0f32), &Vector3::new(1f32, 1f32, 1f32))
 }
 
-fn f32ToU8(color: [f32; 3]) -> [u8; 3] {
+fn f32_to_u8(color: [f32; 3]) -> [u8; 3] {
     [
         (color[0] * 255f32) as u8,
-        (color[0] * 255f32) as u8,
-        (color[0] * 255f32) as u8,
+        (color[1] * 255f32) as u8,
+        (color[2] * 255f32) as u8,
     ]
 }
 
@@ -224,7 +224,7 @@ fn main() {
         let v = y as f32 / ny as f32;
         let r = camera.getRay(&u, &v);
         let c = color(&r);
-        *pixel = Rgb(f32ToU8([c[0], c[1], c[2]]));
+        *pixel = Rgb(f32_to_u8([c[0], c[1], c[2]]));
     }
     
     let ref mut f = File::create("image.png").unwrap();
