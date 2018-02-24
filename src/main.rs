@@ -72,7 +72,7 @@ impl Ray {
     fn new(origin: Vector3<f32>, direction: Vector3<f32>) -> Ray {
         Ray {origin: origin, direction: direction}
     }
-    fn at(self, t: &f32) -> Vector3<f32> {
+    fn at(&self, t: &f32) -> Vector3<f32> {
         self.origin + *t * self.direction
     }
 }
@@ -86,7 +86,7 @@ impl Camera {
     fn getRay(&self, u: &f32, v: &f32) -> Ray {
         Ray::new( 
             self.origin,
-            self.uvw[2] + self.uvw[0] * *u - self.uvw[1] * *v - self.origin
+            self.uvw[2] + self.uvw[0] * *u + self.uvw[1] * *v - self.origin
         )
     }
 }
@@ -191,7 +191,7 @@ impl CameraLookAtBuilder {
 }
 
 fn lerp(t: &f32, a: &Vector3<f32>, b: &Vector3<f32>) -> Vector3<f32> {
-    (0.5f32 / t) * (a + b)
+    (1f32 - t) * a + *t * b 
 }
 
 fn color(ray: &Ray) -> Vector3<f32> {
