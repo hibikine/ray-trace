@@ -194,10 +194,26 @@ fn lerp(t: &f32, a: &Vector3<f32>, b: &Vector3<f32>) -> Vector3<f32> {
     (1f32 - t) * a + *t * b 
 }
 
+fn hit_sphere(center: &Vector3<f32>, radius: &f32, ray: &Ray) -> bool {
+    let oc = ray.origin - center;
+    let a = ray.direction.dot(&ray.direction);
+    let b = 2f32 * ray.direction.dot(&oc);
+    let c = oc.dot(&oc) - pow2(&radius);
+    // 判別式
+    let D = b*b-4f32*a*c;
+
+    D > 0f32
+}
+
 fn color(ray: &Ray) -> Vector3<f32> {
-    let d = ray.direction.normalize();
-    let t = 0.5f32 * (ray.direction[1] + 1f32);
-    lerp(&t, &Vector3::new(0.5f32, 0.7f32, 1.0f32), &Vector3::new(1f32, 1f32, 1f32))
+    match hit_sphere(&Vector3::new(0f32, 0f32, -1f32), &0.5f32, ray) {
+        true => Vector3::new(1f32, 0f32, 0f32),
+        false => {
+            let d = ray.direction.normalize();
+            let t = 0.5f32 * (ray.direction[1] + 1f32);
+            lerp(&t, &Vector3::new(0.5f32, 0.7f32, 1.0f32), &Vector3::new(1f32, 1f32, 1f32))
+        },
+    } 
 }
 
 fn f32_to_u8(color: [f32; 3]) -> [u8; 3] {
