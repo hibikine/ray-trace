@@ -83,10 +83,10 @@ struct Camera {
 }
 
 impl Camera {
-    fn getRay(&self, u: f32, v: f32) -> Ray {
+    fn getRay(&self, u: &f32, v: &f32) -> Ray {
         Ray::new( 
             self.origin,
-            self.uvw[2] + self.uvw[0] * u + self.uvw[1] * v - self.origin
+            self.uvw[2] + self.uvw[0] * *u + self.uvw[1] * *v - self.origin
         )
     }
 }
@@ -190,16 +190,41 @@ impl CameraLookAtBuilder {
     }
 }
 
+fn lerp(t: &f32, a: &Vector3<f32>, b: &Vector3<f32>) -> Vector3<f32> {
+    (1f32 / t) * (a + b)
+}
+
+fn color(ray: &Ray) -> Vector3<f32> {
+    let d = ray.direction.normalize();
+    let t = 0.5f32 * (ray.direction[1] + 1f32);
+    lerp(&t, &Vector3::new(0.5f32, 0.7f32, 1.0f32), &Vector3::new(1f32, 1f32, 1f32))
+}
+
+fn f32ToU8(color: [f32; 3]) -> [u8; 3] {
+    [
+        (color[0] * 255f32) as u8,
+        (color[0] * 255f32) as u8,
+        (color[0] * 255f32) as u8,
+    ]
+}
+
 fn main() {
     let nx = 200;
     let ny = 100;
     let mut image = ImageBuffer::new(nx, ny);
 
+    let camera = CameraUVWBuilder::new()
+        .u(Vector3::new(4f32, 0f32, 0f32))
+        .v(Vector3::new(0f32, 2f32, 0f32))
+        .w(Vector3::new(-2f32, -1f32, -1f32))
+        .finalize();
+
     for (x, y, pixel) in image.enumerate_pixels_mut() {    
-        let r = (std::u8::MAX as u32 * x / nx) as u8;
-        let g = (std::u8::MAX as u32 * y / ny) as u8;
-        let b = std::u8::MAX as u8 >> 1;
-        *pixel = Rgb([r, g, b]);
+        let u = x as f32 / nx as f32;
+        let v = y as f32 / ny as f32;
+        let r = camera.getRay(&u, &v);
+        let c = color(&r);
+        *pixel = Rgb(f32ToU8([c[0], c[1], c[2]]));
     }
     
     let ref mut f = File::create("image.png").unwrap();
