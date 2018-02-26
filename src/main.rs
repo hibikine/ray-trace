@@ -1,12 +1,14 @@
 extern crate nalgebra;
 extern crate image;
 extern crate rand;
+extern crate rayon;
 
 use image::ImageBuffer;
 use image::Rgb;
 use std::fs::File;
 use image::ImageRgb8;
 use image::PNG;
+use image::Pixel;
 use nalgebra::Vector3;
 use std::f32::consts::PI;
 use std::f32::consts::FRAC_1_PI as RECIP_PI;
@@ -17,6 +19,7 @@ const PI2: f32 = PI * 2f32;
 const RECIP_PI2: f32 = RECIP_PI / 2f32;
 const EPSILON: f32 = 1e-6;
 const GAMMA_FACTOR: f32 = 2.2;
+use rayon::prelude::*;
 
 #[inline]
 fn pow2(x: &f32) -> f32 { x*x }
@@ -232,25 +235,52 @@ fn f32_to_u8(color: [f32; 3]) -> [u8; 3] {
     ]
 }
 
+struct Scene<T> where
+    T: Pixel + 'static,
+    T::Subpixel: 'static{
+    camera: Camera,
+    image: ImageBuffer<T, Vec<T::Subpixel>>,
+    backColor: Vector3<f32>,
+}
+
+ 
+
+impl<T> Scene<T> where
+    T: Pixel + 'static,
+    T::Subpixel: 'static {
+    fn new(width: u32, height: u32) -> Scene<T> {
+        let camera = CameraUVWBuilder::new()
+                .u(Vector3::new(4f32, 0f32, 0f32))
+                .v(Vector3::new(0f32, 2f32, 0f32))
+                .w(Vector3::new(-2f32, -1f32, -1f32))
+                .finalize();
+        Scene {
+            camera: camera,
+            image: ImageBuffer::new(width, height),
+            backColor: Vector3::new(0.2f32, 0.2f32, 0.2f32),
+        }
+    }
+}
+impl Scene<Rgb<u8>> {
+    fn render(mut self) {
+        let width = self.image.width() as f32;
+        let height = self.image.height() as f32;
+        for (x, y, pixel) in self.image.enumerate_pixels_mut() {    
+            let u = x as f32 / width;
+            let v = y as f32 / height;
+            let r = self.camera.getRay(&u, &v);
+            let c = color(&r);
+            *pixel = Rgb(f32_to_u8([c[0], c[1], c[2]]));
+        }
+        
+        let ref mut f = File::create("image.png").unwrap();
+        ImageRgb8(self.image).save(f, PNG).unwrap();
+    }
+}
+
 fn main() {
     let nx = 200;
     let ny = 100;
-    let mut image = ImageBuffer::new(nx, ny);
-
-    let camera = CameraUVWBuilder::new()
-        .u(Vector3::new(4f32, 0f32, 0f32))
-        .v(Vector3::new(0f32, 2f32, 0f32))
-        .w(Vector3::new(-2f32, -1f32, -1f32))
-        .finalize();
-
-    for (x, y, pixel) in image.enumerate_pixels_mut() {    
-        let u = x as f32 / nx as f32;
-        let v = y as f32 / ny as f32;
-        let r = camera.getRay(&u, &v);
-        let c = color(&r);
-        *pixel = Rgb(f32_to_u8([c[0], c[1], c[2]]));
-    }
-    
-    let ref mut f = File::create("image.png").unwrap();
-    ImageRgb8(image).save(f, PNG).unwrap();
+    let scene = Scene::<Rgb<u8>>::new(nx, ny);
+    scene.render();
 }
