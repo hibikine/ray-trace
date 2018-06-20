@@ -1,20 +1,20 @@
-extern crate nalgebra;
 extern crate image;
+extern crate nalgebra;
 extern crate rand;
 extern crate rayon;
 
 use image::ImageBuffer;
-use image::Rgb;
-use std::fs::File;
 use image::ImageRgb8;
-use image::PNG;
 use image::Pixel;
+use image::Rgb;
+use image::PNG;
 use nalgebra::Vector3;
-use std::f32::consts::PI;
 use std::f32::consts::FRAC_1_PI as RECIP_PI;
 use std::f32::consts::LOG2_E as LOG2;
+use std::f32::consts::PI;
 use std::f32::MAX as F32_MAX;
 use std::f32::MIN as F32_MIN;
+use std::fs::File;
 const PI2: f32 = PI * 2f32;
 const RECIP_PI2: f32 = RECIP_PI / 2f32;
 const EPSILON: f32 = 1e-6;
@@ -22,13 +22,21 @@ const GAMMA_FACTOR: f32 = 2.2;
 use rayon::prelude::*;
 
 #[inline]
-fn pow2(x: &f32) -> f32 { x*x }
+fn pow2(x: &f32) -> f32 {
+    x * x
+}
 #[inline]
-fn pow3(x: &f32) -> f32 { x*x*x }
+fn pow3(x: &f32) -> f32 {
+    x * x * x
+}
 #[inline]
-fn pow4(x: &f32) -> f32 { x*x*x*x }
+fn pow4(x: &f32) -> f32 {
+    x * x * x * x
+}
 #[inline]
-fn pow5(x: &f32) -> f32 { x*x*x*x*x }
+fn pow5(x: &f32) -> f32 {
+    x * x * x * x * x
+}
 #[inline]
 fn clamp(x: &f32, min: &f32, max: &f32) -> f32 {
     match x {
@@ -42,9 +50,13 @@ fn saturate(x: &f32) -> f32 {
     clamp(x, &0f32, &1f32)
 }
 #[inline]
-fn recip(x: &f32) -> f32 { 1f32 / x }
+fn recip(x: &f32) -> f32 {
+    1f32 / x
+}
 #[inline]
-fn mix(a: &f32, b: &f32, t: &f32) -> f32 { a * (1f32 - t) + b * t }
+fn mix(a: &f32, b: &f32, t: &f32) -> f32 {
+    a * (1f32 - t) + b * t
+}
 #[inline]
 fn step(edge: &f32, x: &f32) -> f32 {
     match x < edge {
@@ -63,8 +75,13 @@ fn smoothstep(a: &f32, b: &f32, t: &f32) -> f32 {
     }
 }
 #[inline]
-fn radians(deg: &f32) -> f32 { deg / 180f32 * PI }
-fn degrees(rad: &f32) -> f32 { rad / PI * 180f32 }
+fn radians(deg: &f32) -> f32 {
+    deg / 180f32 * PI
+}
+#[inline]
+fn degrees(rad: &f32) -> f32 {
+    rad / PI * 180f32
+}
 
 struct Ray {
     origin: Vector3<f32>,
@@ -73,7 +90,10 @@ struct Ray {
 
 impl Ray {
     fn new(origin: Vector3<f32>, direction: Vector3<f32>) -> Ray {
-        Ray {origin: origin, direction: direction}
+        Ray {
+            origin: origin,
+            direction: direction,
+        }
     }
     fn at(&self, t: &f32) -> Vector3<f32> {
         self.origin + *t * self.direction
@@ -82,14 +102,14 @@ impl Ray {
 
 struct Camera {
     origin: Vector3<f32>,
-    uvw: [Vector3<f32>; 3]
+    uvw: [Vector3<f32>; 3],
 }
 
 impl Camera {
     fn getRay(&self, u: &f32, v: &f32) -> Ray {
-        Ray::new( 
+        Ray::new(
             self.origin,
-            self.uvw[2] + self.uvw[0] * *u + self.uvw[1] * *v - self.origin
+            self.uvw[2] + self.uvw[0] * *u + self.uvw[1] * *v - self.origin,
         )
     }
 }
@@ -129,11 +149,7 @@ impl CameraUVWBuilder {
     fn finalize(&self) -> Camera {
         Camera {
             origin: self.origin,
-            uvw: [
-                self.u,
-                self.v,
-                self.w,
-            ]
+            uvw: [self.u, self.v, self.w],
         }
     }
 }
@@ -183,48 +199,55 @@ impl CameraLookAtBuilder {
         let v = w.cross(&u);
 
         Camera {
-            origin: self.lookfrom, 
+            origin: self.lookfrom,
             uvw: [
-                2f32 * halfW * u, 
-                2f32 * halfH * v, 
-                self.lookfrom - halfW * u - halfH * v - w
-            ]
+                2f32 * halfW * u,
+                2f32 * halfH * v,
+                self.lookfrom - halfW * u - halfH * v - w,
+            ],
         }
     }
 }
 
 fn lerp(t: &f32, a: &Vector3<f32>, b: &Vector3<f32>) -> Vector3<f32> {
-    (1f32 - t) * a + *t * b 
+    (1f32 - t) * a + *t * b
 }
 
-fn hit_sphere(center: &Vector3<f32>, radius: &f32, ray: &Ray) -> f32 {
+enum Hit {
+    True(f32),
+    False,
+}
+fn hit_sphere(center: &Vector3<f32>, radius: &f32, ray: &Ray) -> Hit {
     let oc = ray.origin - center;
     let a = ray.direction.dot(&ray.direction);
     let b = 2f32 * ray.direction.dot(&oc);
     let c = oc.dot(&oc) - pow2(&radius);
     // 判別式
-    let D = b*b-4f32*a*c;
+    let D = b * b - 4f32 * a * c;
 
-    match D > 0f32 {
-        false => -1f32,
-        true => (-b - D.sqrt()) / (2f32 * a)
+    match D >= 0f32 {
+        false => Hit::False,
+        true => Hit::True((-b - D.sqrt()) / (2f32 * a)),
     }
 }
-
 fn color(ray: &Ray) -> Vector3<f32> {
     let c = Vector3::new(0f32, 0f32, -1f32);
     match hit_sphere(&c, &0.5f32, ray) {
-        t if t > 0f32 => {
+        Hit::True(t) => {
             // 法線
-            let N = (ray.at(&t) - c).normalize();
-            0.5f32 * (N + Vector3::new(1f32, 1f32, 1f32))
-        },
+            let n = (ray.at(&t) - c).normalize();
+            0.5f32 * (n + Vector3::new(1f32, 1f32, 1f32))
+        }
         _ => {
             let d = ray.direction.normalize();
             let t = 0.5f32 * (ray.direction[1] + 1f32);
-            lerp(&t, &Vector3::new(0.5f32, 0.7f32, 1.0f32), &Vector3::new(1f32, 1f32, 1f32))
-        },
-    } 
+            lerp(
+                &t,
+                &Vector3::new(0.5f32, 0.7f32, 1.0f32),
+                &Vector3::new(1f32, 1f32, 1f32),
+            )
+        }
+    }
 }
 
 fn f32_to_u8(color: [f32; 3]) -> [u8; 3] {
@@ -235,25 +258,27 @@ fn f32_to_u8(color: [f32; 3]) -> [u8; 3] {
     ]
 }
 
-struct Scene<T> where
+struct Scene<T>
+where
     T: Pixel + 'static,
-    T::Subpixel: 'static{
+    T::Subpixel: 'static,
+{
     camera: Camera,
     image: ImageBuffer<T, Vec<T::Subpixel>>,
     backColor: Vector3<f32>,
 }
 
- 
-
-impl<T> Scene<T> where
+impl<T> Scene<T>
+where
     T: Pixel + 'static,
-    T::Subpixel: 'static {
+    T::Subpixel: 'static,
+{
     fn new(width: u32, height: u32) -> Scene<T> {
         let camera = CameraUVWBuilder::new()
-                .u(Vector3::new(4f32, 0f32, 0f32))
-                .v(Vector3::new(0f32, 2f32, 0f32))
-                .w(Vector3::new(-2f32, -1f32, -1f32))
-                .finalize();
+            .u(Vector3::new(4f32, 0f32, 0f32))
+            .v(Vector3::new(0f32, 2f32, 0f32))
+            .w(Vector3::new(-2f32, -1f32, -1f32))
+            .finalize();
         Scene {
             camera: camera,
             image: ImageBuffer::new(width, height),
@@ -265,14 +290,14 @@ impl Scene<Rgb<u8>> {
     fn render(mut self) {
         let width = self.image.width() as f32;
         let height = self.image.height() as f32;
-        for (x, y, pixel) in self.image.enumerate_pixels_mut() {    
+        for (x, y, pixel) in self.image.enumerate_pixels_mut() {
             let u = x as f32 / width;
             let v = y as f32 / height;
             let r = self.camera.getRay(&u, &v);
             let c = color(&r);
             *pixel = Rgb(f32_to_u8([c[0], c[1], c[2]]));
         }
-        
+
         let ref mut f = File::create("image.png").unwrap();
         ImageRgb8(self.image).save(f, PNG).unwrap();
     }
