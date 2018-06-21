@@ -21,6 +21,13 @@ const EPSILON: f32 = 1e-6;
 const GAMMA_FACTOR: f32 = 2.2;
 use rayon::prelude::*;
 
+mod camera;
+use camera::*;
+mod ray;
+use ray::*;
+mod shape;
+mod sphere;
+
 #[inline]
 fn pow2(x: &f32) -> f32 {
     x * x
@@ -81,132 +88,6 @@ fn radians(deg: &f32) -> f32 {
 #[inline]
 fn degrees(rad: &f32) -> f32 {
     rad / PI * 180f32
-}
-
-struct Ray {
-    origin: Vector3<f32>,
-    direction: Vector3<f32>,
-}
-
-impl Ray {
-    fn new(origin: Vector3<f32>, direction: Vector3<f32>) -> Ray {
-        Ray {
-            origin: origin,
-            direction: direction,
-        }
-    }
-    fn at(&self, t: &f32) -> Vector3<f32> {
-        self.origin + *t * self.direction
-    }
-}
-
-struct Camera {
-    origin: Vector3<f32>,
-    uvw: [Vector3<f32>; 3],
-}
-
-impl Camera {
-    fn getRay(&self, u: &f32, v: &f32) -> Ray {
-        Ray::new(
-            self.origin,
-            self.uvw[2] + self.uvw[0] * *u + self.uvw[1] * *v - self.origin,
-        )
-    }
-}
-
-struct CameraUVWBuilder {
-    u: Vector3<f32>,
-    v: Vector3<f32>,
-    w: Vector3<f32>,
-    origin: Vector3<f32>,
-}
-
-impl CameraUVWBuilder {
-    fn new() -> CameraUVWBuilder {
-        CameraUVWBuilder {
-            u: Vector3::zeros(),
-            v: Vector3::zeros(),
-            w: Vector3::zeros(),
-            origin: Vector3::zeros(),
-        }
-    }
-    fn u(&mut self, u: Vector3<f32>) -> &mut CameraUVWBuilder {
-        self.u = u;
-        self
-    }
-    fn v(&mut self, v: Vector3<f32>) -> &mut CameraUVWBuilder {
-        self.v = v;
-        self
-    }
-    fn w(&mut self, w: Vector3<f32>) -> &mut CameraUVWBuilder {
-        self.w = w;
-        self
-    }
-    fn origin(&mut self, origin: Vector3<f32>) -> &mut CameraUVWBuilder {
-        self.origin = origin;
-        self
-    }
-    fn finalize(&self) -> Camera {
-        Camera {
-            origin: self.origin,
-            uvw: [self.u, self.v, self.w],
-        }
-    }
-}
-struct CameraLookAtBuilder {
-    lookfrom: Vector3<f32>,
-    lookat: Vector3<f32>,
-    vup: Vector3<f32>,
-    vfov: f32,
-    aspect: f32,
-}
-
-impl CameraLookAtBuilder {
-    fn new() -> CameraLookAtBuilder {
-        CameraLookAtBuilder {
-            lookfrom: Vector3::zeros(),
-            lookat: Vector3::new(0f32, 0f32, 1f32),
-            vup: Vector3::new(0f32, 1f32, 0f32),
-            vfov: 30f32,
-            aspect: 1f32,
-        }
-    }
-    fn lookfrom(&mut self, lookfrom: Vector3<f32>) -> &mut Self {
-        self.lookfrom = lookfrom;
-        self
-    }
-    fn lookat(&mut self, lookat: Vector3<f32>) -> &mut Self {
-        self.lookat = lookat;
-        self
-    }
-    fn vup(&mut self, vup: Vector3<f32>) -> &mut Self {
-        self.vup = vup;
-        self
-    }
-    fn vfov(&mut self, vfov: f32) -> &mut Self {
-        self.vfov = vfov;
-        self
-    }
-    fn aspect(&mut self, aspect: f32) -> &mut Self {
-        self.aspect = aspect;
-        self
-    }
-    fn finalize(&self) -> Camera {
-        let halfH = (self.vfov.to_radians() / 2f32).tan();
-        let halfW = self.aspect * halfH;
-        let w = (self.lookfrom - self.lookat).normalize();
-        let u = (self.vup.cross(&w)).normalize();
-        let v = w.cross(&u);
-
-        Camera {
-            origin: self.lookfrom,
-            uvw: [
-                2f32 * halfW * u,
-                2f32 * halfH * v,
-                self.lookfrom - halfW * u - halfH * v - w,
-            ],
-        }
-    }
 }
 
 fn lerp(t: &f32, a: &Vector3<f32>, b: &Vector3<f32>) -> Vector3<f32> {
