@@ -26,7 +26,9 @@ use camera::*;
 mod ray;
 use ray::*;
 mod shape;
+use shape::{Shape, ShapeList};
 mod sphere;
+use sphere::Sphere;
 
 #[inline]
 fn pow2(x: &f32) -> f32 {
@@ -94,43 +96,6 @@ fn lerp(t: &f32, a: &Vector3<f32>, b: &Vector3<f32>) -> Vector3<f32> {
     (1f32 - t) * a + *t * b
 }
 
-enum Hit {
-    True(f32),
-    False,
-}
-fn hit_sphere(center: &Vector3<f32>, radius: &f32, ray: &Ray) -> Hit {
-    let oc = ray.origin - center;
-    let a = ray.direction.dot(&ray.direction);
-    let b = 2f32 * ray.direction.dot(&oc);
-    let c = oc.dot(&oc) - pow2(&radius);
-    // 判別式
-    let D = b * b - 4f32 * a * c;
-
-    match D >= 0f32 {
-        false => Hit::False,
-        true => Hit::True((-b - D.sqrt()) / (2f32 * a)),
-    }
-}
-fn color(ray: &Ray) -> Vector3<f32> {
-    let c = Vector3::new(0f32, 0f32, -1f32);
-    match hit_sphere(&c, &0.5f32, ray) {
-        Hit::True(t) => {
-            // 法線
-            let n = (ray.at(&t) - c).normalize();
-            0.5f32 * (n + Vector3::new(1f32, 1f32, 1f32))
-        }
-        _ => {
-            let d = ray.direction.normalize();
-            let t = 0.5f32 * (ray.direction[1] + 1f32);
-            lerp(
-                &t,
-                &Vector3::new(0.5f32, 0.7f32, 1.0f32),
-                &Vector3::new(1f32, 1f32, 1f32),
-            )
-        }
-    }
-}
-
 fn f32_to_u8(color: [f32; 3]) -> [u8; 3] {
     [
         (color[0] * 255f32) as u8,
@@ -139,44 +104,83 @@ fn f32_to_u8(color: [f32; 3]) -> [u8; 3] {
     ]
 }
 
-struct Scene<T>
-where
-    T: Pixel + 'static,
-    T::Subpixel: 'static,
-{
+struct Scene {
     camera: Camera,
-    image: ImageBuffer<T, Vec<T::Subpixel>>,
-    backColor: Vector3<f32>,
+    world: Box<Shape>,
 }
 
-impl<T> Scene<T>
-where
-    T: Pixel + 'static,
-    T::Subpixel: 'static,
-{
-    fn new(width: u32, height: u32) -> Scene<T> {
+impl Scene {
+    fn new() -> Scene {
         let camera = CameraUVWBuilder::new()
             .u(Vector3::new(4f32, 0f32, 0f32))
             .v(Vector3::new(0f32, 2f32, 0f32))
             .w(Vector3::new(-2f32, -1f32, -1f32))
             .finalize();
+        let mut world = ShapeList::<Sphere>::new();
+        world.add(Sphere::new(Vector3::<f32>::new(0f32, 0f32, -1f32), 0.5f32));
+        world.add(Sphere::new(
+            Vector3::<f32>::new(0f32, -100.5f32, -1f32),
+            100f32,
+        ));
         Scene {
             camera: camera,
-            image: ImageBuffer::new(width, height),
-            backColor: Vector3::new(0.2f32, 0.2f32, 0.2f32),
+            world: Box::new(world),
+        }
+    }
+    fn background_sky(d: &Vector3<f32>) -> Vector3<f32> {
+        let v = d.normalize();
+        let t = 0.5f32 * (v.y + 1.0f32);
+        lerp(
+            &t,
+            &Vector3::<f32>::new(1.0f32, 1.0f32, 1.0f32),
+            &Vector3::<f32>::new(0.5f32, 0.7f32, 1.0f32),
+        )
+    }
+    fn color(&self, r: &Ray) -> Vector3<f32> {
+        match self.world.hit(r, 0f32, std::f32::MAX) {
+            None => Self::background_sky(&r.direction),
+            Some(hrec) => 0.5f32 * (hrec.n + Vector3::<f32>::new(1f32, 1f32, 1f32)),
         }
     }
 }
-impl Scene<Rgb<u8>> {
+struct Renderer<T>
+where
+    T: Pixel + 'static,
+    T::Subpixel: 'static,
+{
+    image: ImageBuffer<T, Vec<T::Subpixel>>,
+    scene: Scene,
+    samples: u32,
+}
+
+impl<T> Renderer<T>
+where
+    T: Pixel + 'static,
+    T::Subpixel: 'static,
+{
+    fn new(width: u32, height: u32, samples: u32) -> Self {
+        Self {
+            image: ImageBuffer::new(width, height),
+            scene: Scene::new(),
+            samples: samples,
+        }
+    }
+}
+impl Renderer<Rgb<u8>> {
     fn render(mut self) {
         let width = self.image.width() as f32;
         let height = self.image.height() as f32;
         for (x, y, pixel) in self.image.enumerate_pixels_mut() {
-            let u = x as f32 / width;
-            let v = y as f32 / height;
-            let r = self.camera.getRay(&u, &v);
-            let c = color(&r);
-            *pixel = Rgb(f32_to_u8([c[0], c[1], c[2]]));
+            let mut sum = Vector3::<f32>::new(0f32, 0f32, 0f32);
+            for _ in 0..self.samples {
+                let u = (x as f32 + rand::random::<f32>()) / width;
+                let v = (y as f32 + rand::random::<f32>()) / height;
+                let r = self.scene.camera.get_ray(&u, &v);
+                let c = self.scene.color(&r);
+                sum += c;
+            }
+            sum /= self.samples as f32;
+            *pixel = Rgb(f32_to_u8([sum[0], sum[1], sum[2]]));
         }
 
         let ref mut f = File::create("image.png").unwrap();
@@ -187,6 +191,6 @@ impl Scene<Rgb<u8>> {
 fn main() {
     let nx = 200;
     let ny = 100;
-    let scene = Scene::<Rgb<u8>>::new(nx, ny);
-    scene.render();
+    let renderer = Renderer::<Rgb<u8>>::new(nx, ny, 100);
+    renderer.render();
 }

@@ -7,7 +7,7 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub fn getRay(&self, u: &f32, v: &f32) -> Ray {
+    pub fn get_ray(&self, u: &f32, v: &f32) -> Ray {
         Ray::new(
             self.origin,
             self.uvw[2] + self.uvw[0] * *u + self.uvw[1] * *v - self.origin,
