@@ -183,8 +183,7 @@ impl Renderer<Rgb<u8>> {
             *pixel = Rgb(f32_to_u8([sum[0], sum[1], sum[2]]));
         }
 
-        let ref mut f = File::create("image.png").unwrap();
-        ImageRgb8(self.image).save(f, PNG).unwrap();
+        ImageRgb8(self.image).save("image.png").unwrap();
     }
 }
 
